@@ -12,27 +12,51 @@ app.get('/', (req, res) => {
 
 app.get('/messages', async (req, res) => {
   // get the actual users from the db
-  const messages = await prisma.message.findMany();
+  const messages = await prisma.message.findMany({
+    include: { children: true },
+  });
   res.send({ success: true, messages });
 });
 
 app.post('/messages', async (req, res) => {
-  const { text } = req.body;
+  const { text, parentId } = req.body;
 
+  //checks if text is provided in request body, if not it returns an error response
   if (!text) {
     return res.send({
       success: false,
       error: 'Text must be provided to create a message!',
     });
   }
+  try {
+    let message;
+    if (parentId) {
+      //check if parent message exists
+      const parentMessage = await prisma.message.findUnique({
+        where: {
+          id: parentId,
+        },
+      });
 
-  const message = await prisma.message.create({
-    data: {
-      text,
-    },
-  });
+      //Adds children to a parent message,
+      message = await prisma.child.create({
+        data: {
+          text,
+          parentId,
+        },
+      });
+    } else {
+      message = await prisma.message.create({
+        data: {
+          text,
+        },
+      });
+    }
 
-  res.send({ success: true, message });
+    res.send({ success: true, message });
+  } catch (error) {
+    res.send({ success: false, error: error.message });
+  }
 });
 
 app.put('/messages/:messageId', async (req, res) => {
