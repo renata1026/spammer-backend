@@ -72,13 +72,13 @@ app.put('/messages/:messageId', async (req, res) => {
       error: 'Text or likes must be provided to create a message!',
     });
   }
-  //Check if likes is a number
-  if (isNaN(Number(likes))) {
-    return res.send({
-      success: false,
-      error: 'Likes must be a number!',
-    });
-  }
+  //   //Check if likes is a number
+  //   if (isNaN(Number(likes))) {
+  //     return res.send({
+  //       success: false,
+  //       error: 'Likes must be a number!',
+  //     });
+  //   }
 
   //search for the message with an id if it doesn't exist can't update it because it doesn't exist
   const messageSearch = await prisma.message.findFirst({
