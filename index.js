@@ -62,67 +62,57 @@ app.post('/messages', async (req, res) => {
 });
 
 app.put('/messages/:messageId', async (req, res) => {
-  const { messageId } = req.params;
+  const { messageId } = req.params; //
   const { text, likes } = req.body;
 
-  // Check if either text or likes is provided
-  if (text === undefined || likes === undefined) {
+  //Check if text and likes are missing
+  if (!text && !likes) {
     return res.send({
       success: false,
-      error: 'Text or likes must be provided to update a message!',
+      error: 'Text or likes must be provided to create a message!',
     });
   }
-
-  // Check if likes is provided and is a number
-  if (likes !== undefined && isNaN(Number(likes))) {
+  //Check if likes is a number
+  if (isNaN(Number(likes))) {
     return res.send({
       success: false,
       error: 'Likes must be a number!',
     });
   }
 
-  // Update the message with the provided data (text and/or likes)
-  // You can use a database query to update the message based on messageId
-
-  // Send a success response
-  return res.send({
-    success: true,
-    message: 'Message updated successfully',
-  });
-});
-
-//search for the message with an id if it doesn't exist can't update it because it doesn't exist
-const messageSearch = await prisma.message.findFirst({
-  where: {
-    id: messageId,
-  },
-});
-if (!messageSearch) {
-  return res.send({
-    success: false,
-    error: 'Message not found!',
-  });
-}
-
-try {
-  const updatedMessage = await prisma.message.update({
+  //search for the message with an id if it doesn't exist can't update it because it doesn't exist
+  const messageSearch = await prisma.message.findFirst({
     where: {
       id: messageId,
     },
-    data: {
-      text,
-      likes,
-    },
   });
+  if (!messageSearch) {
+    return res.send({
+      success: false,
+      error: 'Message not found!',
+    });
+  }
 
-  return res.send({ success: true, message: updatedMessage });
-} catch (error) {
-  // Handle any other potential errors here
-  return res.send({
-    success: false,
-    error: error.message,
-  });
-}
+  try {
+    const updatedMessage = await prisma.message.update({
+      where: {
+        id: messageId,
+      },
+      data: {
+        text,
+        likes,
+      },
+    });
+
+    return res.send({ success: true, message: updatedMessage });
+  } catch (error) {
+    // Handle any other potential errors here
+    return res.send({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 
 app.delete('/messages/:messageId', async (req, res) => {
   const { messageId } = req.params; //
