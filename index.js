@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { log } from 'console';
 import e from 'express';
+import console from 'console';
 
 const prisma = new PrismaClient();
 const app = express();
@@ -36,16 +37,17 @@ app.post('/messages', async (req, res) => {
       error: 'Text must be provided to create a message!',
     });
   }
+  let id = null;
   try {
     let message;
     if (parentId) {
       message = await prisma.child.create({
         data: {
           text,
-
-          parentId,
         },
       });
+
+      id = message.id;
 
       // find a parent, and add a child to it childs array
       const parent = await prisma.message.findFirst({
@@ -56,7 +58,6 @@ app.post('/messages', async (req, res) => {
           children: true,
         },
       });
-      console.log(parent);
 
       if (!parent) {
         return res.send({
@@ -73,7 +74,7 @@ app.post('/messages', async (req, res) => {
           },
         });
         console.log(updatedParent);
-        res.send({ success: true, message: updatedParent });
+        res.send({ success: true, message: updatedParent, id: id });
       }
     } else {
       message = await prisma.message.create({
@@ -85,7 +86,8 @@ app.post('/messages', async (req, res) => {
       res.send({ success: true, message: 'message created' });
     }
   } catch (error) {
-    res.send({ success: false, error: error.message });
+    console.log(error);
+    res.send({ success: false, error: error.message, id: id });
   }
 });
 
@@ -156,15 +158,21 @@ app.post('/messages/:messageId', async (req, res) => {
 
       res.send({ success: true, message });
     } else {
+      console.log('delete parent', messageId);
+      await prisma.child.deleteMany({
+        where: {
+          parentId: messageId,
+        },
+      });
+      // make childerns froiegn array empty first
+
       const message = await prisma.message.delete({
         where: {
           id: messageId,
         },
       });
-    res.send({ success: true, message: 'message deleted' });
+      res.send({ success: true, message: 'message deleted' });
     }
-
-
   } catch (error) {
     res.send({ success: false, error: error.message });
     console.log(error);
