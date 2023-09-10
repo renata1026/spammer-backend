@@ -15,12 +15,14 @@ model Message {
     created_at DateTime @default(now())
     text       String
     likes      Int      @default(0)
+    isChild   Boolean  @default(false)
     children   Child[]
 }
 
 model Child {
     id        String   @id @default(uuid())
     createdAt DateTime @default(now())
+    isDeleted Boolean  @default(false)
     text      String
     parentId  String
     likes     Int      @default(0)

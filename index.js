@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import express from 'express';
 import cors from 'cors';
+import { log } from 'console';
+import e from 'express';
 
 const prisma = new PrismaClient();
 const app = express();
@@ -14,6 +16,8 @@ app.get('/', (req, res) => {
 
 app.get('/messages', async (req, res) => {
   // get the actual users from the db
+  console.log('messages get');
+
   const messages = await prisma.message.findMany({
     include: { children: true },
   });
@@ -22,6 +26,8 @@ app.get('/messages', async (req, res) => {
 
 app.post('/messages', async (req, res) => {
   const { text, parentId } = req.body;
+
+  console.log(req.body);
 
   //checks if text is provided in request body, if not it returns an error response
   if (!text) {
@@ -33,29 +39,51 @@ app.post('/messages', async (req, res) => {
   try {
     let message;
     if (parentId) {
-      //check if parent message exists
-      const parentMessage = await prisma.message.findUnique({
-        where: {
-          id: parentId,
-        },
-      });
-
-      //Adds children to a parent message,
       message = await prisma.child.create({
         data: {
           text,
+
           parentId,
         },
       });
+
+      // find a parent, and add a child to it childs array
+      const parent = await prisma.message.findFirst({
+        where: {
+          id: parentId,
+        },
+        include: {
+          children: true,
+        },
+      });
+      console.log(parent);
+
+      if (!parent) {
+        return res.send({
+          success: false,
+          error: 'Parent message not found!',
+        });
+      } else {
+        const updatedParent = await prisma.message.update({
+          where: {
+            id: parentId,
+          },
+          data: {
+            children: [...parent.children, message],
+          },
+        });
+        console.log(updatedParent);
+        res.send({ success: true, message: updatedParent });
+      }
     } else {
       message = await prisma.message.create({
         data: {
           text,
         },
       });
-    }
 
-    res.send({ success: true, message });
+      res.send({ success: true, message: 'message created' });
+    }
   } catch (error) {
     res.send({ success: false, error: error.message });
   }
@@ -72,13 +100,6 @@ app.put('/messages/:messageId', async (req, res) => {
       error: 'Text or likes must be provided to create a message!',
     });
   }
-  //   //Check if likes is a number
-  //   if (isNaN(Number(likes))) {
-  //     return res.send({
-  //       success: false,
-  //       error: 'Likes must be a number!',
-  //     });
-  //   }
 
   //search for the message with an id if it doesn't exist can't update it because it doesn't exist
   const messageSearch = await prisma.message.findFirst({
@@ -114,14 +135,40 @@ app.put('/messages/:messageId', async (req, res) => {
   }
 });
 
-app.delete('/messages/:messageId', async (req, res) => {
-  const { messageId } = req.params; //
-  const message = await prisma.message.delete({
-    where: {
-      id: messageId,
-    },
-  });
-  res.send({ success: true, message });
+app.post('/messages/:messageId', async (req, res) => {
+  try {
+    const { messageId } = req.params; //
+    const { parentId } = req.body;
+    console.log(messageId, parentId);
+
+    if (parentId) {
+      // make the child isDelete true
+      const message = await prisma.child.update({
+        where: {
+          id: messageId,
+        },
+        data: {
+          isDeleted: true,
+        },
+      });
+
+      console.log(message);
+
+      res.send({ success: true, message });
+    } else {
+      const message = await prisma.message.delete({
+        where: {
+          id: messageId,
+        },
+      });
+    res.send({ success: true, message: 'message deleted' });
+    }
+
+
+  } catch (error) {
+    res.send({ success: false, error: error.message });
+    console.log(error);
+  }
 });
 
 //middleware functions
@@ -133,7 +180,7 @@ app.use((error, req, res, next) => {
   res.send({ success: false, error: error.message });
 });
 
-const port = 3000;
+const port = 3001;
 
 app.listen(port, () => {
   console.log(`app listening on port ${port}`);
